@@ -203,7 +203,7 @@ class ArticleParser
     }
 
     /**
-     * Extract article content.
+     * Extract article content raw paragraphs.
      */
     private function extractContent(Crawler $crawler): ?string
     {
@@ -226,40 +226,15 @@ class ArticleParser
                     return trim($node->text());
                 });
 
-            $cleanParagraphs = [];
+            $validParagraphs = array_filter(
+                $paragraphs,
+                fn($paragraph) => $paragraph !== ''
+            );
 
-            foreach ($paragraphs as $paragraph) {
-
-                if ($paragraph === '') {
-                    continue;
-                }
-
-                $lower = mb_strtolower($paragraph);
-
-                /*
-                 * Remove advertisements.
-                 */
-                if ($lower === '[publicidad]') {
-                    continue;
-                }
-
-                /*
-                 * Remove related article text.
-                 */
-                if (
-                    str_starts_with($lower, 'lee también') ||
-                    str_starts_with($lower, 'lee tambien')
-                ) {
-                    continue;
-                }
-
-                $cleanParagraphs[] = $paragraph;
-            }
-
-            if (!empty($cleanParagraphs)) {
+            if (!empty($validParagraphs)) {
                 return implode(
                     "\n\n",
-                    $cleanParagraphs
+                    $validParagraphs
                 );
             }
         }

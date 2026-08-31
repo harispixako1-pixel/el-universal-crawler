@@ -3,6 +3,7 @@
 namespace App\Services\Crawler;
 
 use App\Models\Article;
+use App\Services\Crawler\ContentSanitizer;
 use Illuminate\Support\Facades\Log;
 
 class ElUniversalCrawler
@@ -11,7 +12,8 @@ class ElUniversalCrawler
         private UrlDiscoverer $urlDiscoverer,
         private ArticleFetcher $articleFetcher,
         private ArticleParser $articleParser,
-        private ArticleNormalizer $articleNormalizer
+        private ArticleNormalizer $articleNormalizer,
+        private ContentSanitizer $contentSanitizer
     ) {
     }
 
@@ -84,6 +86,15 @@ class ElUniversalCrawler
                  */
                 $article = $this->articleNormalizer->normalize(
                     $article
+                );
+
+                // Extract language or fallback to 'es'
+                $language = $article['language'] ?? 'es';
+
+                // Sanitize content prior to saving
+                $article['content'] = $this->contentSanitizer->sanitize(
+                    $article['content'],
+                    $language
                 );
 
                 /*
