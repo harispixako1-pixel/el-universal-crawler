@@ -35,4 +35,12 @@ return [
         ],
     ],
 
+    'elpais' => [
+        'base_url' => env('ELPAIS_BASE_URL', 'https://www.elpais.com.uy'),
+    ],
+
+    'scrapingbee' => [
+        'api_key' => env('SCRAPINGBEE_API_KEY'),
+    ],
+
 ];
