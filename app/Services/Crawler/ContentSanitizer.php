@@ -32,7 +32,8 @@ class ContentSanitizer
         $cleanParagraphs = [];
 
         foreach ($paragraphs as $paragraph) {
-            $trimmed = trim($paragraph);
+            $trimmed = html_entity_decode(strip_tags($paragraph), ENT_QUOTES | ENT_HTML5, 'UTF-8');
+            $trimmed = preg_replace('/\s+/u', ' ', trim($trimmed)) ?? trim($trimmed);
 
             if ($this->shouldRemoveParagraph($trimmed, $lang)) {
                 continue;

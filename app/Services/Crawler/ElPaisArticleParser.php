@@ -44,8 +44,14 @@ class ElPaisArticleParser
 
     private function isArticle(Crawler $crawler): bool
     {
-        return $crawler->filter('article, [data-type="article"], .article-content, .story-body, .story-content')->count() > 0
-            || ($crawler->filter('h1')->count() > 0 && $crawler->filter('p')->count() > 1);
+        if ($crawler->filter('article, [data-type="article"], .article-content, .Page-articleBody, .story-body, .story-content')->count() > 0) {
+            return true;
+        }
+
+        $articleType = $this->extractJsonLdField($crawler, '@type');
+
+        return is_string($articleType)
+            && in_array($articleType, ['Article', 'NewsArticle', 'ReportageNewsArticle'], true);
     }
 
     private function getTitle(Crawler $crawler): ?string
@@ -57,6 +63,11 @@ class ElPaisArticleParser
 
         $title = $this->getMetaContent($crawler, 'name', 'twitter:title');
         if ($title) {
+            return $title;
+        }
+
+        $title = $this->extractJsonLdField($crawler, 'headline');
+        if (is_string($title) && $title !== '') {
             return $title;
         }
 
@@ -75,6 +86,11 @@ class ElPaisArticleParser
         }
 
         $date = $this->getMetaContent($crawler, 'name', 'publish_date');
+        if ($date) {
+            return $date;
+        }
+
+        $date = $this->getMetaContent($crawler, 'itemprop', 'datePublished');
         if ($date) {
             return $date;
         }
@@ -106,7 +122,7 @@ class ElPaisArticleParser
             return is_array($author) ? ($author['name'] ?? null) : $author;
         }
 
-        $authorElements = $crawler->filter('.author, .by-line, [data-author], .writer-name');
+        $authorElements = $crawler->filter('.Page-authors-list a span, .Page-author, .author, .by-line, [data-author], .writer-name');
         if ($authorElements->count()) {
             return trim($authorElements->first()->text());
         }
@@ -116,16 +132,26 @@ class ElPaisArticleParser
 
     private function getContent(Crawler $crawler): ?string
     {
+        // Premium pages keep the complete article body in JSON-LD while the
+        // rendered container may contain only the paywall UI.
+        $jsonLdContent = $this->extractJsonLdField($crawler, 'articleBody');
+        if (is_string($jsonLdContent) && trim($jsonLdContent) !== '') {
+            return trim($jsonLdContent);
+        }
+
         $selectors = [
+            '.RichTextArticleBody',
+            '.Page-articleBody > [class*="RichText"]',
+            '.Page-articleBody',
             'article',
             '.article-content',
             '.article-body',
+            '.Page-articleBody',
             '.story-body',
             '.story-content',
             '[data-type="article-body"]',
             '.content-body',
             'main article',
-            'main',
         ];
 
         foreach ($selectors as $selector) {
@@ -148,9 +174,14 @@ class ElPaisArticleParser
 
     private function getCategory(Crawler $crawler): ?string
     {
-        $category = $this->getMetaContent($crawler, 'name', 'article:section');
+        $category = $this->getMetaContent($crawler, 'property', 'article:section');
         if ($category) {
             return $category;
+        }
+
+        $category = $this->extractJsonLdField($crawler, 'articleSection');
+        if (is_string($category) && trim($category) !== '') {
+            return trim($category);
         }
 
         $categoryElements = $crawler->filter('.category, .section, [data-category], .breadcrumb a');
@@ -215,7 +246,17 @@ class ElPaisArticleParser
                 $value = $item[$field];
 
                 if ($field === 'author' && is_array($value)) {
-                    return $value['name'] ?? null;
+                    if (isset($value['name'])) {
+                        return $value['name'];
+                    }
+
+                    foreach ($value as $author) {
+                        if (is_array($author) && !empty($author['name'])) {
+                            return trim($author['name']);
+                        }
+                    }
+
+                    continue;
                 }
 
                 return is_string($value) ? trim($value) : $value;

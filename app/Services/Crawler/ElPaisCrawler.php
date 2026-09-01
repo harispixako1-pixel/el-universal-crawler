@@ -12,6 +12,7 @@ class ElPaisCrawler
         private HtmlFetcher $httpClient,
         private ElPaisUrlDiscoverer $urlDiscoverer,
         private ElPaisArticleParser $articleParser,
+        private ArticleNormalizer $articleNormalizer,
         private ContentSanitizer $contentSanitizer
     ) {
     }
@@ -53,6 +54,7 @@ class ElPaisCrawler
             try {
                 $html = $this->httpClient->fetch($url);
                 $article = $this->articleParser->parse($html, $url);
+                $article = $this->articleNormalizer->normalize($article);
 
                 $article['content'] = $this->contentSanitizer->sanitize(
                     $article['content'],

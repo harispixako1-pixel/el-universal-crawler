@@ -32,7 +32,9 @@ class ElPaisUrlDiscoverer
 
             $urls = [];
 
-            $crawler->filter('a[href]')->each(function (Crawler $node) use (&$urls) {
+            // Only inspect article-card links. Navigation and category links such as
+            // /noticias/venezuela are not article pages.
+            $crawler->filter('.PromoFlex h2.Promo-title a[href], .PromoFlex .Promo-media a[href]')->each(function (Crawler $node) use (&$urls) {
                 $href = trim((string) $node->attr('href'));
 
                 if ($href === '') {
@@ -41,7 +43,7 @@ class ElPaisUrlDiscoverer
 
                 $absoluteUrl = $this->toAbsoluteUrl($href);
 
-                if ($absoluteUrl === null || !$this->isPremiumArticleUrl($absoluteUrl)) {
+                if ($absoluteUrl === null || !$this->isArticleUrl($absoluteUrl)) {
                     return;
                 }
 
@@ -64,7 +66,7 @@ class ElPaisUrlDiscoverer
         }
     }
 
-    private function isPremiumArticleUrl(string $url): bool
+    private function isArticleUrl(string $url): bool
     {
         $parsedUrl = parse_url($url);
 
@@ -74,17 +76,11 @@ class ElPaisUrlDiscoverer
 
         $path = trim($parsedUrl['path'] ?? '', '/');
 
-        if ($path === '') {
+        if ($path === '' || $path === 'noticias/premium') {
             return false;
         }
 
-        foreach (['/noticias/', '/articulo/', '/premium/'] as $pattern) {
-            if (str_contains($url, $pattern)) {
-                return true;
-            }
-        }
-
-        return false;
+        return true;
     }
 
     private function toAbsoluteUrl(string $url): ?string
